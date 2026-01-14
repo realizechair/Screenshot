@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スクショ注釈ツール - Screenshot Annotator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ツールバー -->
+    <div id="toolbar">
+        <div class="toolbar-section">
+            <button id="btn-load" class="tool-btn" title="画像を読み込む">
+                📁 画像読み込み
+            </button>
+            <input type="file" id="file-input" accept="image/*" style="display: none;">
+        </div>
+        
+        <div class="toolbar-divider"></div>
+        
+        <div class="toolbar-section">
+            <button id="btn-select" class="tool-btn active" title="選択/移動 (V)">
+                ↖️ 選択
+            </button>
+            <button id="btn-rect" class="tool-btn" title="枠線 (R)">
+                🔲 枠線
+            </button>
+            <button id="btn-text" class="tool-btn" title="テキスト (T)">
+                📝 テキスト
+            </button>
+        </div>
+        
+        <div class="toolbar-divider"></div>
+        
+        <div class="toolbar-section">
+            <button id="btn-undo" class="tool-btn" title="元に戻す (Ctrl+Z)" disabled>
+                ↶ Undo
+            </button>
+            <button id="btn-redo" class="tool-btn" title="やり直し (Ctrl+Shift+Z)" disabled>
+                ↷ Redo
+            </button>
+        </div>
+        
+        <div class="toolbar-divider"></div>
+        
+        <div class="toolbar-section">
+            <button id="btn-delete" class="tool-btn" title="削除 (Delete)" disabled>
+                🗑️ 削除
+            </button>
+        </div>
+        
+        <div class="toolbar-divider"></div>
+        
+        <div class="toolbar-section">
+            <button id="btn-export" class="tool-btn primary" title="PNG出力" disabled>
+                💾 PNG出力
+            </button>
+        </div>
+        
+        <div class="toolbar-info">
+            <span id="info-text">Ctrl/⌘+V で画像を貼り付け、または画像をドロップ</span>
+        </div>
+    </div>
+
+    <!-- メインキャンバスエリア -->
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+        
+        <!-- 初期ガイド表示 -->
+        <div id="guide" class="guide">
+            <div class="guide-content">
+                <div class="guide-icon">📋</div>
+                <h2>スクリーンショット注釈ツール</h2>
+                <p class="guide-main">画像を読み込んで注釈を追加できます</p>
+                <div class="guide-methods">
+                    <div class="guide-method">
+                        <strong>方法1:</strong> <kbd>Ctrl</kbd>+<kbd>V</kbd> でクリップボードから貼り付け
+                    </div>
+                    <div class="guide-method">
+                        <strong>方法2:</strong> 画像ファイルをドラッグ&ドロップ
+                    </div>
+                    <div class="guide-method">
+                        <strong>方法3:</strong> 「📁 画像読み込み」ボタンをクリック
+                    </div>
+                </div>
+                <div class="guide-shortcuts">
+                    <h3>ショートカット</h3>
+                    <div class="shortcut-list">
+                        <div><kbd>V</kbd> 選択/移動</div>
+                        <div><kbd>R</kbd> 枠線ツール</div>
+                        <div><kbd>T</kbd> テキストツール</div>
+                        <div><kbd>Delete</kbd> 削除</div>
+                        <div><kbd>Ctrl</kbd>+<kbd>Z</kbd> Undo</div>
+                        <div><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> Redo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- テキスト入力用の隠しinput -->
+        <input type="text" id="text-input" class="text-input" style="display: none;">
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

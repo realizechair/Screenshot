@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Runtime data
+*.log
+*.pid
+*.seed
+
+# Environment files
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build output
+dist/
+build/
+
+# Backup files
+*.backup
+*.bak

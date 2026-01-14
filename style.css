@@ -1,0 +1,255 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+    background: #f5f5f5;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ツールバー */
+#toolbar {
+    background: #2c3e50;
+    color: white;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 100;
+    flex-shrink: 0;
+}
+
+.toolbar-section {
+    display: flex;
+    gap: 6px;
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 32px;
+    background: rgba(255,255,255,0.2);
+    margin: 0 4px;
+}
+
+.tool-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.tool-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.4);
+}
+
+.tool-btn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.tool-btn.active {
+    background: #3498db;
+    border-color: #2980b9;
+}
+
+.tool-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.tool-btn.primary {
+    background: #27ae60;
+    border-color: #229954;
+}
+
+.tool-btn.primary:hover:not(:disabled) {
+    background: #2ecc71;
+}
+
+.toolbar-info {
+    margin-left: auto;
+    font-size: 13px;
+    color: rgba(255,255,255,0.8);
+}
+
+kbd {
+    background: rgba(255,255,255,0.2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: monospace;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+/* キャンバスコンテナ */
+#canvas-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #e8e8e8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#canvas {
+    display: block;
+    background: white;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    cursor: crosshair;
+}
+
+#canvas.grab {
+    cursor: grab;
+}
+
+#canvas.grabbing {
+    cursor: grabbing;
+}
+
+#canvas.text-cursor {
+    cursor: text;
+}
+
+#canvas.move-cursor {
+    cursor: move;
+}
+
+#canvas.nwse-resize {
+    cursor: nwse-resize;
+}
+
+#canvas.nesw-resize {
+    cursor: nesw-resize;
+}
+
+/* 初期ガイド */
+.guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #555;
+    pointer-events: none;
+    max-width: 600px;
+    padding: 20px;
+}
+
+.guide.hidden {
+    display: none;
+}
+
+.guide-content {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.guide-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.guide h2 {
+    color: #2c3e50;
+    margin-bottom: 12px;
+    font-size: 24px;
+}
+
+.guide-main {
+    color: #7f8c8d;
+    margin-bottom: 24px;
+    font-size: 16px;
+}
+
+.guide-methods {
+    text-align: left;
+    margin-bottom: 24px;
+}
+
+.guide-method {
+    background: #f8f9fa;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #555;
+}
+
+.guide-method strong {
+    color: #2c3e50;
+    margin-right: 8px;
+}
+
+.guide-shortcuts {
+    border-top: 1px solid #ecf0f1;
+    padding-top: 20px;
+    margin-top: 20px;
+}
+
+.guide-shortcuts h3 {
+    font-size: 16px;
+    color: #2c3e50;
+    margin-bottom: 12px;
+}
+
+.shortcut-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    font-size: 13px;
+}
+
+.shortcut-list div {
+    background: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+    color: #555;
+}
+
+/* テキスト入力 */
+.text-input {
+    position: absolute;
+    border: 2px solid #3498db;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 12px;
+    font-size: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+    border-radius: 4px;
+    outline: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 1000;
+    min-width: 200px;
+}
+
+/* レスポンシブ対応（念のため） */
+@media (max-width: 768px) {
+    #toolbar {
+        flex-wrap: wrap;
+        padding: 8px;
+    }
+    
+    .toolbar-info {
+        display: none;
+    }
+    
+    .tool-btn {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+}
