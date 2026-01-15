@@ -285,20 +285,9 @@ class AnnotationApp {
         const offsetX = (this.objects.filter(o => o.type === 'image').length * 20) % 200;
         const offsetY = (this.objects.filter(o => o.type === 'image').length * 20) % 200;
         
-        // 画像サイズの初期値（元サイズの50%または最大800px）
-        let width = img.width;
-        let height = img.height;
-        const maxSize = 800;
-        
-        if (width > maxSize || height > maxSize) {
-            const ratio = Math.min(maxSize / width, maxSize / height);
-            width = width * ratio;
-            height = height * ratio;
-        } else {
-            // 元サイズが小さい場合は50%に縮小
-            width = width * 0.5;
-            height = height * 0.5;
-        }
+        // 画像サイズは原寸大（元のサイズそのまま）
+        const width = img.width;
+        const height = img.height;
         
         const newImage = {
             id: this.nextId++,
