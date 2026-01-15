@@ -58,33 +58,66 @@ class AnnotationApp {
     // ========================================
     
     bindModeSelection() {
-        document.getElementById('mode-single').querySelector('.mode-button').addEventListener('click', () => {
+        const singleBtn = document.getElementById('mode-single').querySelector('.mode-button');
+        const multiBtn = document.getElementById('mode-multi').querySelector('.mode-button');
+        
+        console.log('🔧 モード選択ボタンをバインド:', singleBtn, multiBtn);
+        
+        singleBtn.addEventListener('click', () => {
+            console.log('🖼️ シングルモードボタンがクリックされました');
             this.startSingleMode();
         });
         
-        document.getElementById('mode-multi').querySelector('.mode-button').addEventListener('click', () => {
+        multiBtn.addEventListener('click', () => {
+            console.log('🖼️🖼️ マルチモードボタンがクリックされました');
             this.startMultiMode();
         });
     }
     
     startSingleMode() {
         this.mode = 'single';
-        console.log('🖼️ シングルモードで開始');
-        this.modeSelector.classList.add('hidden');
-        this.guide.style.display = 'flex';
+        console.log('✅ シングルモードで開始');
+        console.log('モードセレクター:', this.modeSelector);
+        
+        // モード選択画面を非表示
+        if (this.modeSelector) {
+            this.modeSelector.classList.add('hidden');
+            console.log('✅ モードセレクターを非表示にしました');
+        }
+        
+        // ガイドを表示
+        if (this.guide) {
+            this.guide.style.display = 'flex';
+            console.log('✅ ガイドを表示しました');
+        }
+        
         this.initCanvas();
         this.bindEvents();
         this.updateUI();
+        console.log('✅ シングルモード初期化完了');
     }
     
     startMultiMode() {
         this.mode = 'multi';
-        console.log('🖼️🖼️ マルチモードで開始');
-        this.modeSelector.classList.add('hidden');
-        this.guide.style.display = 'flex';
+        console.log('✅ マルチモードで開始');
+        console.log('モードセレクター:', this.modeSelector);
+        
+        // モード選択画面を非表示
+        if (this.modeSelector) {
+            this.modeSelector.classList.add('hidden');
+            console.log('✅ モードセレクターを非表示にしました');
+        }
+        
+        // ガイドを表示
+        if (this.guide) {
+            this.guide.style.display = 'flex';
+            console.log('✅ ガイドを表示しました');
+        }
+        
         this.initCanvas();
         this.bindEvents();
         this.updateUI();
+        console.log('✅ マルチモード初期化完了');
     }
     
     // ========================================
