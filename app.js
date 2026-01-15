@@ -1,5 +1,6 @@
 // ========================================
-// スクリーンショット注釈ツール - メインアプリケーション v2
+// スクリーンショット注釈ツール - メインアプリケーション v3
+// 複数画像対応版
 // ========================================
 
 class AnnotationApp {
@@ -9,8 +10,7 @@ class AnnotationApp {
         this.ctx = this.canvas.getContext('2d');
         
         // アプリケーション状態
-        this.image = null;
-        this.objects = []; // 描画オブジェクトの配列
+        this.objects = []; // すべてのオブジェクト（画像含む）
         this.selectedObject = null;
         this.currentTool = 'select'; // 'select', 'rect', 'arrow', 'text', 'number'
         
@@ -48,7 +48,7 @@ class AnnotationApp {
         this.bindEvents();
         this.updateUI();
         
-        console.log('📸 スクリーンショット注釈ツール v2 起動');
+        console.log('📸 スクリーンショット注釈ツール v3 起動 - 複数画像対応');
     }
     
     // ========================================
@@ -56,21 +56,19 @@ class AnnotationApp {
     // ========================================
     
     initCanvas() {
-        // 初期サイズ設定
-        this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
-    }
-    
-    resizeCanvas() {
+        // 初期サイズ設定（大きめのキャンバス）
         const container = document.getElementById('canvas-container');
         const rect = container.getBoundingClientRect();
         
-        // キャンバスサイズをコンテナに合わせる（後で画像サイズに調整）
-        if (!this.image) {
-            this.canvas.width = Math.min(800, rect.width - 40);
-            this.canvas.height = Math.min(600, rect.height - 40);
-            this.render();
-        }
+        // デフォルトで大きめのキャンバスを用意
+        this.canvas.width = Math.max(1920, rect.width - 40);
+        this.canvas.height = Math.max(1080, rect.height - 40);
+        
+        this.render();
+        
+        window.addEventListener('resize', () => {
+            // ウィンドウリサイズ時は何もしない（既存のオブジェクトを保持）
+        });
     }
     
     // ========================================
@@ -133,7 +131,6 @@ class AnnotationApp {
         
         // テキスト入力（blurのタイミングを遅延）
         this.textInput.addEventListener('blur', () => {
-            // 少し遅延させて、Enterキー処理が先に実行されるようにする
             this.textInputBlurTimeout = setTimeout(() => {
                 if (this.editingText) {
                     this.finishTextEdit();
@@ -142,7 +139,6 @@ class AnnotationApp {
         });
         
         this.textInput.addEventListener('focus', () => {
-            // フォーカス時にblurタイムアウトをクリア
             if (this.textInputBlurTimeout) {
                 clearTimeout(this.textInputBlurTimeout);
                 this.textInputBlurTimeout = null;
@@ -152,7 +148,6 @@ class AnnotationApp {
         this.textInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                // blurタイムアウトをクリア
                 if (this.textInputBlurTimeout) {
                     clearTimeout(this.textInputBlurTimeout);
                     this.textInputBlurTimeout = null;
@@ -161,14 +156,12 @@ class AnnotationApp {
             }
             if (e.key === 'Escape') {
                 e.preventDefault();
-                // blurタイムアウトをクリア
                 if (this.textInputBlurTimeout) {
                     clearTimeout(this.textInputBlurTimeout);
                     this.textInputBlurTimeout = null;
                 }
                 this.cancelTextEdit();
             }
-            // イベント伝播を止めて、ショートカットキーと競合しないようにする
             e.stopPropagation();
         });
     }
@@ -208,7 +201,7 @@ class AnnotationApp {
     }
     
     // ========================================
-    // 画像読み込み
+    // 画像読み込み（複数画像対応）
     // ========================================
     
     openFileDialog() {
@@ -251,50 +244,78 @@ class AnnotationApp {
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                this.loadImage(img);
+                this.addImageObject(img);
             };
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
     
-    loadImage(img) {
-        this.image = img;
+    addImageObject(img) {
+        // 画像を中央に配置（少しずつずらす）
+        const offsetX = (this.objects.filter(o => o.type === 'image').length * 20) % 200;
+        const offsetY = (this.objects.filter(o => o.type === 'image').length * 20) % 200;
         
-        // キャンバスサイズを画像に合わせる（コンテナ内に収まるように）
-        const container = document.getElementById('canvas-container');
-        const rect = container.getBoundingClientRect();
-        const maxWidth = rect.width - 40;
-        const maxHeight = rect.height - 40;
-        
+        // 画像サイズの初期値（元サイズの50%または最大800px）
         let width = img.width;
         let height = img.height;
+        const maxSize = 800;
         
-        // アスペクト比を保ってリサイズ
-        if (width > maxWidth || height > maxHeight) {
-            const ratio = Math.min(maxWidth / width, maxHeight / height);
+        if (width > maxSize || height > maxSize) {
+            const ratio = Math.min(maxSize / width, maxSize / height);
             width = width * ratio;
             height = height * ratio;
+        } else {
+            // 元サイズが小さい場合は50%に縮小
+            width = width * 0.5;
+            height = height * 0.5;
         }
         
-        this.canvas.width = width;
-        this.canvas.height = height;
+        const newImage = {
+            id: this.nextId++,
+            type: 'image',
+            x: 100 + offsetX,
+            y: 100 + offsetY,
+            width: width,
+            height: height,
+            image: img,
+            originalWidth: img.width,
+            originalHeight: img.height
+        };
         
-        // 状態をリセット
-        this.objects = [];
-        this.selectedObject = null;
-        this.history = [];
-        this.historyIndex = -1;
-        this.numberCounter = 1;
+        // 画像は最背面に配置（配列の先頭に追加）
+        this.objects.unshift(newImage);
+        this.selectedObject = newImage;
         
         // ガイドを非表示
         this.guide.classList.add('hidden');
         
-        // 描画
+        // キャンバスサイズを拡張（必要に応じて）
+        this.expandCanvasIfNeeded(newImage.x + newImage.width, newImage.y + newImage.height);
+        
         this.render();
+        this.saveHistory();
         this.updateUI();
         
-        console.log(`✅ 画像読み込み完了: ${img.width}x${img.height} → ${width}x${height}`);
+        console.log(`✅ 画像追加: ${img.width}x${img.height} → ${width}x${height}`);
+    }
+    
+    expandCanvasIfNeeded(requiredWidth, requiredHeight) {
+        let needExpand = false;
+        
+        if (requiredWidth > this.canvas.width) {
+            this.canvas.width = Math.max(requiredWidth + 200, this.canvas.width);
+            needExpand = true;
+        }
+        
+        if (requiredHeight > this.canvas.height) {
+            this.canvas.height = Math.max(requiredHeight + 200, this.canvas.height);
+            needExpand = true;
+        }
+        
+        if (needExpand) {
+            console.log(`📐 キャンバス拡張: ${this.canvas.width}x${this.canvas.height}`);
+        }
     }
     
     // ========================================
@@ -302,8 +323,6 @@ class AnnotationApp {
     // ========================================
     
     handleMouseDown(e) {
-        if (!this.image) return;
-        
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -322,7 +341,7 @@ class AnnotationApp {
                 }
             }
             
-            // オブジェクト選択
+            // オブジェクト選択（後ろから=上から）
             const obj = this.getObjectAt(x, y);
             if (obj) {
                 this.selectedObject = obj;
@@ -376,8 +395,6 @@ class AnnotationApp {
     }
     
     handleMouseMove(e) {
-        if (!this.image) return;
-        
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -427,8 +444,6 @@ class AnnotationApp {
     }
     
     handleMouseUp(e) {
-        if (!this.image) return;
-        
         if (this.isDragging && this.dragObject) {
             // 矩形が作成された場合、履歴に追加
             if (this.currentTool === 'rect') {
@@ -472,7 +487,7 @@ class AnnotationApp {
     }
     
     handleDoubleClick(e) {
-        if (!this.image || this.currentTool !== 'select') return;
+        if (this.currentTool !== 'select') return;
         
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -614,10 +629,7 @@ class AnnotationApp {
     }
     
     isPointInObject(obj, x, y) {
-        if (obj.type === 'rect') {
-            return x >= obj.x && x <= obj.x + obj.width &&
-                   y >= obj.y && y <= obj.y + obj.height;
-        } else if (obj.type === 'text') {
+        if (obj.type === 'image' || obj.type === 'rect' || obj.type === 'text') {
             return x >= obj.x && x <= obj.x + obj.width &&
                    y >= obj.y && y <= obj.y + obj.height;
         } else if (obj.type === 'number') {
@@ -625,7 +637,7 @@ class AnnotationApp {
             const dy = y - (obj.y + obj.radius);
             return dx * dx + dy * dy <= obj.radius * obj.radius;
         } else if (obj.type === 'arrow') {
-            // 矢印の線に近いかチェック（簡易版）
+            // 矢印の線に近いかチェック
             const dist = this.distanceToLine(x, y, obj.x1, obj.y1, obj.x2, obj.y2);
             return dist < 10;
         }
@@ -703,6 +715,9 @@ class AnnotationApp {
         // 最小サイズ制限
         if (obj.width < 20) obj.width = 20;
         if (obj.height < 20) obj.height = 20;
+        
+        // キャンバス拡張チェック
+        this.expandCanvasIfNeeded(obj.x + obj.width, obj.y + obj.height);
     }
     
     updateCursor(x, y) {
@@ -742,10 +757,23 @@ class AnnotationApp {
     // ========================================
     
     saveHistory() {
-        // 現在の状態をJSON化して保存
+        // 画像オブジェクトはImageオブジェクトを含むのでJSON化できない
+        // dataURLに変換して保存
+        const objectsForHistory = this.objects.map(obj => {
+            if (obj.type === 'image') {
+                return {
+                    ...obj,
+                    imageDataURL: obj.image.src
+                };
+            }
+            return obj;
+        });
+        
         const state = JSON.stringify({
-            objects: this.objects,
-            numberCounter: this.numberCounter
+            objects: objectsForHistory,
+            numberCounter: this.numberCounter,
+            canvasWidth: this.canvas.width,
+            canvasHeight: this.canvas.height
         });
         
         // 現在位置より後ろの履歴を削除
@@ -768,21 +796,35 @@ class AnnotationApp {
         if (this.historyIndex <= 0) return;
         
         this.historyIndex--;
-        const state = JSON.parse(this.history[this.historyIndex]);
-        this.objects = state.objects;
-        this.numberCounter = state.numberCounter;
-        this.selectedObject = null;
-        this.render();
-        this.updateUI();
+        this.restoreFromHistory();
     }
     
     redo() {
         if (this.historyIndex >= this.history.length - 1) return;
         
         this.historyIndex++;
+        this.restoreFromHistory();
+    }
+    
+    restoreFromHistory() {
         const state = JSON.parse(this.history[this.historyIndex]);
-        this.objects = state.objects;
+        
+        // 画像オブジェクトを復元
+        this.objects = state.objects.map(obj => {
+            if (obj.type === 'image') {
+                const img = new Image();
+                img.src = obj.imageDataURL;
+                return {
+                    ...obj,
+                    image: img
+                };
+            }
+            return obj;
+        });
+        
         this.numberCounter = state.numberCounter;
+        this.canvas.width = state.canvasWidth;
+        this.canvas.height = state.canvasHeight;
         this.selectedObject = null;
         this.render();
         this.updateUI();
@@ -793,15 +835,31 @@ class AnnotationApp {
     // ========================================
     
     render() {
-        // キャンバスをクリア
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // キャンバスをクリア（白背景）
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // 画像を描画
-        if (this.image) {
-            this.ctx.drawImage(this.image, 0, 0, this.canvas.width, this.canvas.height);
+        // グリッド線を描画（薄いグレー）
+        this.ctx.strokeStyle = '#f0f0f0';
+        this.ctx.lineWidth = 1;
+        
+        // 縦線
+        for (let x = 0; x < this.canvas.width; x += 50) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, this.canvas.height);
+            this.ctx.stroke();
         }
         
-        // オブジェクトを描画
+        // 横線
+        for (let y = 0; y < this.canvas.height; y += 50) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, y);
+            this.ctx.lineTo(this.canvas.width, y);
+            this.ctx.stroke();
+        }
+        
+        // オブジェクトを描画（画像は最初に描画される）
         for (let obj of this.objects) {
             this.drawObject(obj);
         }
@@ -813,7 +871,10 @@ class AnnotationApp {
     }
     
     drawObject(obj) {
-        if (obj.type === 'rect') {
+        if (obj.type === 'image') {
+            this.ctx.drawImage(obj.image, obj.x, obj.y, obj.width, obj.height);
+            
+        } else if (obj.type === 'rect') {
             this.ctx.strokeStyle = obj.strokeStyle;
             this.ctx.lineWidth = obj.lineWidth;
             this.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
@@ -838,7 +899,7 @@ class AnnotationApp {
     }
     
     drawArrow(obj) {
-        const headLength = 15; // 矢印の頭の長さ
+        const headLength = 15;
         const angle = Math.atan2(obj.y2 - obj.y1, obj.x2 - obj.x1);
         
         // 線を描画
@@ -934,7 +995,7 @@ class AnnotationApp {
     // ========================================
     
     exportPNG() {
-        if (!this.image) return;
+        if (this.objects.length === 0) return;
         
         // 選択状態を一時的に解除して描画
         const prevSelected = this.selectedObject;
@@ -1018,11 +1079,12 @@ class AnnotationApp {
         document.getElementById('btn-delete').disabled = !this.selectedObject;
         
         // 出力ボタン
-        document.getElementById('btn-export').disabled = !this.image;
+        document.getElementById('btn-export').disabled = this.objects.length === 0;
         
         // 情報テキスト
-        if (this.image) {
-            this.infoText.textContent = `オブジェクト: ${this.objects.length}個 | 次の番号: ${this.numberCounter}`;
+        const imageCount = this.objects.filter(o => o.type === 'image').length;
+        if (this.objects.length > 0) {
+            this.infoText.textContent = `画像: ${imageCount}枚 | オブジェクト: ${this.objects.length}個 | 次の番号: ${this.numberCounter}`;
         } else {
             this.infoText.textContent = 'Ctrl/⌘+V で画像を貼り付け、または画像をドロップ';
         }
