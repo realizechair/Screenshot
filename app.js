@@ -56,13 +56,36 @@ class AnnotationApp {
     // ========================================
     
     initCanvas() {
-        // 初期サイズ設定（大きめのキャンバス）
+        // 初期サイズ設定（大きめのキャンバス + Retina対応）
         const container = document.getElementById('canvas-container');
         const rect = container.getBoundingClientRect();
         
+        // デバイスピクセル比を取得（Retina対応）
+        this.dpr = window.devicePixelRatio || 1;
+        console.log(`📱 デバイスピクセル比: ${this.dpr}x`);
+        
         // デフォルトで大きめのキャンバスを用意
-        this.canvas.width = Math.max(1920, rect.width - 40);
-        this.canvas.height = Math.max(1080, rect.height - 40);
+        const logicalWidth = Math.max(1920, rect.width - 40);
+        const logicalHeight = Math.max(1080, rect.height - 40);
+        
+        // 物理ピクセルサイズを設定（高解像度）
+        this.canvas.width = logicalWidth * this.dpr;
+        this.canvas.height = logicalHeight * this.dpr;
+        
+        // CSS表示サイズを設定
+        this.canvas.style.width = logicalWidth + 'px';
+        this.canvas.style.height = logicalHeight + 'px';
+        
+        // 論理サイズを保存（座標計算用）
+        this.logicalWidth = logicalWidth;
+        this.logicalHeight = logicalHeight;
+        
+        // コンテキストをスケーリング
+        this.ctx.scale(this.dpr, this.dpr);
+        
+        // 高品質レンダリング設定
+        this.ctx.imageSmoothingEnabled = true;
+        this.ctx.imageSmoothingQuality = 'high';
         
         this.render();
         
@@ -303,18 +326,34 @@ class AnnotationApp {
     expandCanvasIfNeeded(requiredWidth, requiredHeight) {
         let needExpand = false;
         
-        if (requiredWidth > this.canvas.width) {
-            this.canvas.width = Math.max(requiredWidth + 200, this.canvas.width);
+        // 論理サイズで比較
+        if (requiredWidth > this.logicalWidth) {
+            this.logicalWidth = Math.max(requiredWidth + 200, this.logicalWidth);
             needExpand = true;
         }
         
-        if (requiredHeight > this.canvas.height) {
-            this.canvas.height = Math.max(requiredHeight + 200, this.canvas.height);
+        if (requiredHeight > this.logicalHeight) {
+            this.logicalHeight = Math.max(requiredHeight + 200, this.logicalHeight);
             needExpand = true;
         }
         
         if (needExpand) {
-            console.log(`📐 キャンバス拡張: ${this.canvas.width}x${this.canvas.height}`);
+            // 物理ピクセルサイズを更新
+            this.canvas.width = this.logicalWidth * this.dpr;
+            this.canvas.height = this.logicalHeight * this.dpr;
+            
+            // CSS表示サイズを更新
+            this.canvas.style.width = this.logicalWidth + 'px';
+            this.canvas.style.height = this.logicalHeight + 'px';
+            
+            // スケーリングを再適用
+            this.ctx.scale(this.dpr, this.dpr);
+            
+            // 高品質レンダリング設定を再適用
+            this.ctx.imageSmoothingEnabled = true;
+            this.ctx.imageSmoothingQuality = 'high';
+            
+            console.log(`📐 キャンバス拡張: ${this.logicalWidth}x${this.logicalHeight} (物理: ${this.canvas.width}x${this.canvas.height})`);
         }
     }
     
@@ -772,8 +811,8 @@ class AnnotationApp {
         const state = JSON.stringify({
             objects: objectsForHistory,
             numberCounter: this.numberCounter,
-            canvasWidth: this.canvas.width,
-            canvasHeight: this.canvas.height
+            logicalWidth: this.logicalWidth,
+            logicalHeight: this.logicalHeight
         });
         
         // 現在位置より後ろの履歴を削除
@@ -823,8 +862,26 @@ class AnnotationApp {
         });
         
         this.numberCounter = state.numberCounter;
-        this.canvas.width = state.canvasWidth;
-        this.canvas.height = state.canvasHeight;
+        
+        // 論理サイズを復元
+        this.logicalWidth = state.logicalWidth;
+        this.logicalHeight = state.logicalHeight;
+        
+        // 物理ピクセルサイズを更新
+        this.canvas.width = this.logicalWidth * this.dpr;
+        this.canvas.height = this.logicalHeight * this.dpr;
+        
+        // CSS表示サイズを更新
+        this.canvas.style.width = this.logicalWidth + 'px';
+        this.canvas.style.height = this.logicalHeight + 'px';
+        
+        // スケーリングを再適用
+        this.ctx.scale(this.dpr, this.dpr);
+        
+        // 高品質レンダリング設定を再適用
+        this.ctx.imageSmoothingEnabled = true;
+        this.ctx.imageSmoothingQuality = 'high';
+        
         this.selectedObject = null;
         this.render();
         this.updateUI();
@@ -837,7 +894,7 @@ class AnnotationApp {
     render() {
         // キャンバスをクリア（白背景）
         this.ctx.fillStyle = '#ffffff';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
         
         // オブジェクトを描画（画像は最初に描画される）
         for (let obj of this.objects) {
