@@ -17,7 +17,6 @@ class AnnotationApp {
         // 現在のスタイル設定
         this.currentColor = '#ff3b30';
         this.currentLineWidth = 3;
-        this.currentMosaicSize = 150; // モザイクの粗さ（デフォルト150px）
         this.numberCounter = 1; // 番号スタンプのカウンター
         
         // 操作履歴（Undo/Redo用）
@@ -131,16 +130,6 @@ class AnnotationApp {
         lineWidth.addEventListener('input', (e) => {
             this.currentLineWidth = parseInt(e.target.value);
             lineWidthValue.textContent = this.currentLineWidth + 'px';
-        });
-        
-        // モザイクサイズスライダー
-        const mosaicSize = document.getElementById('mosaic-size');
-        const mosaicSizeValue = document.getElementById('mosaic-size-value');
-        
-        mosaicSize.addEventListener('input', (e) => {
-            this.currentMosaicSize = parseInt(e.target.value);
-            mosaicSizeValue.textContent = this.currentMosaicSize + 'px';
-            console.log('モザイクサイズ変更:', this.currentMosaicSize);
         });
         
         // ファイル入力
@@ -454,17 +443,17 @@ class AnnotationApp {
             this.placeNumber(x, y);
             
         } else if (this.currentTool === 'mosaic') {
-            // モザイク領域を作成開始
-            console.log('🔳 モザイク作成開始 - サイズ:', this.currentMosaicSize);
+            // 黒塗り領域を作成開始
+            console.log('⬛ 黒塗り作成開始');
             const newMosaic = {
                 id: this.nextId++,
-                type: 'mosaic',
+                type: 'mosaic',  // 内部的には'mosaic'のまま
                 x: x,
                 y: y,
                 width: 0,
                 height: 0,
-                pixelSize: this.currentMosaicSize,  // スライダーで設定した粗さ
-                imageData: null // 後で描画時にキャプチャ
+                fillStyle: '#000000',  // 黒塗り
+                imageData: null
             };
             this.objects.push(newMosaic);
             this.dragObject = newMosaic;
@@ -575,8 +564,8 @@ class AnnotationApp {
                         obj.y += obj.height;
                         obj.height = -obj.height;
                     }
-                    // モザイク処理を実行してキャプチャ
-                    this.captureMosaicArea(obj);
+                    // 黒塗り完成（処理不要）
+                    console.log('✅ 黒塗り完了');
                     this.saveHistory();
                 }
             } else if (this.currentTool === 'select') {
@@ -1115,21 +1104,9 @@ class AnnotationApp {
             this.drawNumber(obj);
             
         } else if (obj.type === 'mosaic') {
-            // モザイク画像を描画
-            if (obj.imageDataURL) {
-                // 画像をキャッシュしない場合は毎回新規作成
-                if (!obj.cachedImage) {
-                    obj.cachedImage = new Image();
-                    obj.cachedImage.src = obj.imageDataURL;
-                }
-                if (obj.cachedImage.complete) {
-                    this.ctx.drawImage(obj.cachedImage, obj.x, obj.y, obj.width, obj.height);
-                }
-            } else {
-                // モザイク未生成の場合、一時的に半透明の矩形を表示
-                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-                this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
-            }
+            // 黒塗り（完全な黒い矩形）
+            this.ctx.fillStyle = obj.fillStyle || '#000000';
+            this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
         }
     }
     
@@ -1298,9 +1275,9 @@ class AnnotationApp {
             if (!isMod) {
                 this.setTool('number');
             }
-        } else if (e.key === 'm' || e.key === 'M') {
+        } else if (e.key === 'b' || e.key === 'B') {
             if (!isMod) {
-                this.setTool('mosaic');
+                this.setTool('mosaic');  // 内部的には'mosaic'のまま（黒塗り機能）
             }
         }
     }
