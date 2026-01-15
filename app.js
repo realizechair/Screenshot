@@ -60,8 +60,9 @@ class AnnotationApp {
     bindModeSelection() {
         const singleBtn = document.getElementById('mode-single').querySelector('.mode-button');
         const multiBtn = document.getElementById('mode-multi').querySelector('.mode-button');
+        const closeBtn = document.getElementById('mode-close-btn');
         
-        console.log('🔧 モード選択ボタンをバインド:', singleBtn, multiBtn);
+        console.log('🔧 モード選択ボタンをバインド:', singleBtn, multiBtn, closeBtn);
         
         singleBtn.addEventListener('click', () => {
             console.log('🖼️ シングルモードボタンがクリックされました');
@@ -70,6 +71,12 @@ class AnnotationApp {
         
         multiBtn.addEventListener('click', () => {
             console.log('🖼️🖼️ マルチモードボタンがクリックされました');
+            this.startMultiMode();
+        });
+        
+        // 閉じるボタン（デフォルトはマルチモード）
+        closeBtn.addEventListener('click', () => {
+            console.log('❌ モード選択を閉じました（デフォルト: マルチモード）');
             this.startMultiMode();
         });
     }
