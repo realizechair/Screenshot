@@ -452,7 +452,7 @@ class AnnotationApp {
                 y: y,
                 width: 0,
                 height: 0,
-                pixelSize: 5,  // モザイクの粗さ（細かいモザイク）
+                pixelSize: 15,  // モザイクの粗さ（粗いモザイク）
                 imageData: null // 後で描画時にキャプチャ
             };
             this.objects.push(newMosaic);
