@@ -25,9 +25,26 @@
             <button id="btn-rect" class="tool-btn" title="枠線 (R)">
                 🔲 枠線
             </button>
+            <button id="btn-arrow" class="tool-btn" title="矢印 (A)">
+                ➡️ 矢印
+            </button>
             <button id="btn-text" class="tool-btn" title="テキスト (T)">
                 📝 テキスト
             </button>
+            <button id="btn-number" class="tool-btn" title="番号 (N)">
+                🔢 番号
+            </button>
+        </div>
+        
+        <div class="toolbar-divider"></div>
+        
+        <div class="toolbar-section">
+            <label class="color-label" title="色を選択">
+                🎨
+                <input type="color" id="color-picker" value="#ff3b30">
+            </label>
+            <input type="range" id="line-width" min="1" max="10" value="3" title="線の太さ">
+            <span id="line-width-value" class="line-width-value">3px</span>
         </div>
         
         <div class="toolbar-divider"></div>
@@ -88,7 +105,9 @@
                     <div class="shortcut-list">
                         <div><kbd>V</kbd> 選択/移動</div>
                         <div><kbd>R</kbd> 枠線ツール</div>
+                        <div><kbd>A</kbd> 矢印ツール</div>
                         <div><kbd>T</kbd> テキストツール</div>
+                        <div><kbd>N</kbd> 番号スタンプ</div>
                         <div><kbd>Delete</kbd> 削除</div>
                         <div><kbd>Ctrl</kbd>+<kbd>Z</kbd> Undo</div>
                         <div><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> Redo</div>

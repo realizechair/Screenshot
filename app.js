@@ -1,5 +1,5 @@
 // ========================================
-// スクリーンショット注釈ツール - メインアプリケーション
+// スクリーンショット注釈ツール - メインアプリケーション v2
 // ========================================
 
 class AnnotationApp {
@@ -12,7 +12,12 @@ class AnnotationApp {
         this.image = null;
         this.objects = []; // 描画オブジェクトの配列
         this.selectedObject = null;
-        this.currentTool = 'select'; // 'select', 'rect', 'text'
+        this.currentTool = 'select'; // 'select', 'rect', 'arrow', 'text', 'number'
+        
+        // 現在のスタイル設定
+        this.currentColor = '#ff3b30';
+        this.currentLineWidth = 3;
+        this.numberCounter = 1; // 番号スタンプのカウンター
         
         // 操作履歴（Undo/Redo用）
         this.history = [];
@@ -29,6 +34,7 @@ class AnnotationApp {
         // テキスト編集
         this.editingText = null;
         this.textInput = document.getElementById('text-input');
+        this.textInputBlurTimeout = null;
         
         // オブジェクトIDカウンター
         this.nextId = 1;
@@ -42,7 +48,7 @@ class AnnotationApp {
         this.bindEvents();
         this.updateUI();
         
-        console.log('📸 スクリーンショット注釈ツール起動');
+        console.log('📸 スクリーンショット注釈ツール v2 起動');
     }
     
     // ========================================
@@ -76,11 +82,32 @@ class AnnotationApp {
         document.getElementById('btn-load').addEventListener('click', () => this.openFileDialog());
         document.getElementById('btn-select').addEventListener('click', () => this.setTool('select'));
         document.getElementById('btn-rect').addEventListener('click', () => this.setTool('rect'));
+        document.getElementById('btn-arrow').addEventListener('click', () => this.setTool('arrow'));
         document.getElementById('btn-text').addEventListener('click', () => this.setTool('text'));
+        document.getElementById('btn-number').addEventListener('click', () => this.setTool('number'));
         document.getElementById('btn-undo').addEventListener('click', () => this.undo());
         document.getElementById('btn-redo').addEventListener('click', () => this.redo());
         document.getElementById('btn-delete').addEventListener('click', () => this.deleteSelected());
         document.getElementById('btn-export').addEventListener('click', () => this.exportPNG());
+        
+        // カラーピッカーとスライダー
+        const colorPicker = document.getElementById('color-picker');
+        const lineWidth = document.getElementById('line-width');
+        const lineWidthValue = document.getElementById('line-width-value');
+        
+        document.querySelector('.color-label').addEventListener('click', () => {
+            colorPicker.click();
+        });
+        
+        colorPicker.addEventListener('input', (e) => {
+            this.currentColor = e.target.value;
+            console.log('色変更:', this.currentColor);
+        });
+        
+        lineWidth.addEventListener('input', (e) => {
+            this.currentLineWidth = parseInt(e.target.value);
+            lineWidthValue.textContent = this.currentLineWidth + 'px';
+        });
         
         // ファイル入力
         document.getElementById('file-input').addEventListener('change', (e) => this.handleFileSelect(e));
@@ -104,16 +131,45 @@ class AnnotationApp {
         // キーボードショートカット
         document.addEventListener('keydown', (e) => this.handleKeyDown(e));
         
-        // テキスト入力
-        this.textInput.addEventListener('blur', () => this.finishTextEdit());
+        // テキスト入力（blurのタイミングを遅延）
+        this.textInput.addEventListener('blur', () => {
+            // 少し遅延させて、Enterキー処理が先に実行されるようにする
+            this.textInputBlurTimeout = setTimeout(() => {
+                if (this.editingText) {
+                    this.finishTextEdit();
+                }
+            }, 100);
+        });
+        
+        this.textInput.addEventListener('focus', () => {
+            // フォーカス時にblurタイムアウトをクリア
+            if (this.textInputBlurTimeout) {
+                clearTimeout(this.textInputBlurTimeout);
+                this.textInputBlurTimeout = null;
+            }
+        });
+        
         this.textInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
+                // blurタイムアウトをクリア
+                if (this.textInputBlurTimeout) {
+                    clearTimeout(this.textInputBlurTimeout);
+                    this.textInputBlurTimeout = null;
+                }
                 this.finishTextEdit();
             }
             if (e.key === 'Escape') {
+                e.preventDefault();
+                // blurタイムアウトをクリア
+                if (this.textInputBlurTimeout) {
+                    clearTimeout(this.textInputBlurTimeout);
+                    this.textInputBlurTimeout = null;
+                }
                 this.cancelTextEdit();
             }
+            // イベント伝播を止めて、ショートカットキーと競合しないようにする
+            e.stopPropagation();
         });
     }
     
@@ -135,9 +191,15 @@ class AnnotationApp {
         } else if (tool === 'rect') {
             document.getElementById('btn-rect').classList.add('active');
             this.canvas.style.cursor = 'crosshair';
+        } else if (tool === 'arrow') {
+            document.getElementById('btn-arrow').classList.add('active');
+            this.canvas.style.cursor = 'crosshair';
         } else if (tool === 'text') {
             document.getElementById('btn-text').classList.add('active');
             this.canvas.style.cursor = 'text';
+        } else if (tool === 'number') {
+            document.getElementById('btn-number').classList.add('active');
+            this.canvas.style.cursor = 'crosshair';
         }
         
         // 選択解除
@@ -223,6 +285,7 @@ class AnnotationApp {
         this.selectedObject = null;
         this.history = [];
         this.historyIndex = -1;
+        this.numberCounter = 1;
         
         // ガイドを非表示
         this.guide.classList.add('hidden');
@@ -279,16 +342,36 @@ class AnnotationApp {
                 y: y,
                 width: 0,
                 height: 0,
-                strokeStyle: '#ff3b30',
-                lineWidth: 3
+                strokeStyle: this.currentColor,
+                lineWidth: this.currentLineWidth
             };
             this.objects.push(newRect);
             this.dragObject = newRect;
             this.selectedObject = newRect;
             
+        } else if (this.currentTool === 'arrow') {
+            // 新しい矢印を作成開始
+            const newArrow = {
+                id: this.nextId++,
+                type: 'arrow',
+                x1: x,
+                y1: y,
+                x2: x,
+                y2: y,
+                strokeStyle: this.currentColor,
+                lineWidth: this.currentLineWidth
+            };
+            this.objects.push(newArrow);
+            this.dragObject = newArrow;
+            this.selectedObject = newArrow;
+            
         } else if (this.currentTool === 'text') {
             // テキスト配置
             this.placeText(x, y);
+            
+        } else if (this.currentTool === 'number') {
+            // 番号スタンプ配置
+            this.placeNumber(x, y);
         }
     }
     
@@ -313,8 +396,15 @@ class AnnotationApp {
                 this.resizeObject(this.dragObject, this.resizeHandle, dx, dy);
             } else {
                 // 移動
-                this.dragObject.x += dx;
-                this.dragObject.y += dy;
+                if (this.dragObject.type === 'arrow') {
+                    this.dragObject.x1 += dx;
+                    this.dragObject.y1 += dy;
+                    this.dragObject.x2 += dx;
+                    this.dragObject.y2 += dy;
+                } else {
+                    this.dragObject.x += dx;
+                    this.dragObject.y += dy;
+                }
             }
             this.dragStartX = x;
             this.dragStartY = y;
@@ -325,6 +415,13 @@ class AnnotationApp {
             const obj = this.dragObject;
             obj.width = x - obj.x;
             obj.height = y - obj.y;
+            this.render();
+            
+        } else if (this.currentTool === 'arrow' && this.dragObject) {
+            // 矢印の終点更新
+            const obj = this.dragObject;
+            obj.x2 = x;
+            obj.y2 = y;
             this.render();
         }
     }
@@ -350,6 +447,16 @@ class AnnotationApp {
                         obj.y += obj.height;
                         obj.height = -obj.height;
                     }
+                    this.saveHistory();
+                }
+            } else if (this.currentTool === 'arrow') {
+                const obj = this.dragObject;
+                // 矢印が短すぎる場合は削除
+                const length = Math.sqrt((obj.x2 - obj.x1)**2 + (obj.y2 - obj.y1)**2);
+                if (length < 10) {
+                    this.objects = this.objects.filter(o => o.id !== obj.id);
+                    this.selectedObject = null;
+                } else {
                     this.saveHistory();
                 }
             } else if (this.currentTool === 'select') {
@@ -400,15 +507,16 @@ class AnnotationApp {
         this.objects.push(newText);
         this.selectedObject = newText;
         this.render();
-        this.saveHistory();
         
-        // テキスト編集を開始
-        this.editText(newText);
+        // テキスト編集を開始（少し遅延させる）
+        setTimeout(() => {
+            this.editText(newText);
+        }, 50);
     }
     
     editText(textObj) {
         this.editingText = textObj;
-        this.textInput.value = textObj.text;
+        this.textInput.value = textObj.text === 'テキストを入力' ? '' : textObj.text;
         
         // 入力欄を配置
         const rect = this.canvas.getBoundingClientRect();
@@ -446,13 +554,14 @@ class AnnotationApp {
         this.textInput.style.display = 'none';
         this.editingText = null;
         this.render();
+        this.updateUI();
     }
     
     cancelTextEdit() {
         if (!this.editingText) return;
         
         // 新規作成の場合は削除
-        if (this.editingText.text === 'テキストを入力') {
+        if (this.editingText.text === 'テキストを入力' || this.textInput.value.trim() === '') {
             this.objects = this.objects.filter(o => o.id !== this.editingText.id);
             if (this.selectedObject === this.editingText) {
                 this.selectedObject = null;
@@ -462,6 +571,31 @@ class AnnotationApp {
         this.textInput.style.display = 'none';
         this.editingText = null;
         this.render();
+        this.updateUI();
+    }
+    
+    // ========================================
+    // 番号スタンプ処理
+    // ========================================
+    
+    placeNumber(x, y) {
+        const newNumber = {
+            id: this.nextId++,
+            type: 'number',
+            x: x - 20,  // 中心に配置
+            y: y - 20,
+            number: this.numberCounter++,
+            radius: 20,
+            fillStyle: this.currentColor,
+            textColor: '#fff',
+            fontSize: 18,
+            fontWeight: 'bold'
+        };
+        
+        this.objects.push(newNumber);
+        this.selectedObject = newNumber;
+        this.render();
+        this.saveHistory();
     }
     
     // ========================================
@@ -486,11 +620,51 @@ class AnnotationApp {
         } else if (obj.type === 'text') {
             return x >= obj.x && x <= obj.x + obj.width &&
                    y >= obj.y && y <= obj.y + obj.height;
+        } else if (obj.type === 'number') {
+            const dx = x - (obj.x + obj.radius);
+            const dy = y - (obj.y + obj.radius);
+            return dx * dx + dy * dy <= obj.radius * obj.radius;
+        } else if (obj.type === 'arrow') {
+            // 矢印の線に近いかチェック（簡易版）
+            const dist = this.distanceToLine(x, y, obj.x1, obj.y1, obj.x2, obj.y2);
+            return dist < 10;
         }
         return false;
     }
     
+    distanceToLine(px, py, x1, y1, x2, y2) {
+        const A = px - x1;
+        const B = py - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+        
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+        
+        if (lenSq !== 0) param = dot / lenSq;
+        
+        let xx, yy;
+        
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+        
+        const dx = px - xx;
+        const dy = py - yy;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+    
     getResizeHandle(obj, x, y) {
+        if (obj.type === 'arrow' || obj.type === 'number') return null;
+        
         const handleSize = 10;
         const corners = [
             { name: 'tl', x: obj.x, y: obj.y },
@@ -547,7 +721,7 @@ class AnnotationApp {
         if (this.currentTool === 'select') {
             const obj = this.getObjectAt(x, y);
             this.canvas.style.cursor = obj ? 'move' : 'default';
-        } else if (this.currentTool === 'rect') {
+        } else if (this.currentTool === 'rect' || this.currentTool === 'arrow' || this.currentTool === 'number') {
             this.canvas.style.cursor = 'crosshair';
         } else if (this.currentTool === 'text') {
             this.canvas.style.cursor = 'text';
@@ -569,7 +743,10 @@ class AnnotationApp {
     
     saveHistory() {
         // 現在の状態をJSON化して保存
-        const state = JSON.stringify(this.objects);
+        const state = JSON.stringify({
+            objects: this.objects,
+            numberCounter: this.numberCounter
+        });
         
         // 現在位置より後ろの履歴を削除
         this.history = this.history.slice(0, this.historyIndex + 1);
@@ -591,7 +768,9 @@ class AnnotationApp {
         if (this.historyIndex <= 0) return;
         
         this.historyIndex--;
-        this.objects = JSON.parse(this.history[this.historyIndex]);
+        const state = JSON.parse(this.history[this.historyIndex]);
+        this.objects = state.objects;
+        this.numberCounter = state.numberCounter;
         this.selectedObject = null;
         this.render();
         this.updateUI();
@@ -601,7 +780,9 @@ class AnnotationApp {
         if (this.historyIndex >= this.history.length - 1) return;
         
         this.historyIndex++;
-        this.objects = JSON.parse(this.history[this.historyIndex]);
+        const state = JSON.parse(this.history[this.historyIndex]);
+        this.objects = state.objects;
+        this.numberCounter = state.numberCounter;
         this.selectedObject = null;
         this.render();
         this.updateUI();
@@ -637,6 +818,9 @@ class AnnotationApp {
             this.ctx.lineWidth = obj.lineWidth;
             this.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
             
+        } else if (obj.type === 'arrow') {
+            this.drawArrow(obj);
+            
         } else if (obj.type === 'text') {
             // 背景
             this.ctx.fillStyle = obj.backgroundColor;
@@ -647,10 +831,86 @@ class AnnotationApp {
             this.ctx.font = `${obj.fontSize}px ${obj.fontFamily}`;
             this.ctx.textBaseline = 'top';
             this.ctx.fillText(obj.text, obj.x + obj.padding, obj.y + obj.padding);
+            
+        } else if (obj.type === 'number') {
+            this.drawNumber(obj);
         }
     }
     
+    drawArrow(obj) {
+        const headLength = 15; // 矢印の頭の長さ
+        const angle = Math.atan2(obj.y2 - obj.y1, obj.x2 - obj.x1);
+        
+        // 線を描画
+        this.ctx.strokeStyle = obj.strokeStyle;
+        this.ctx.lineWidth = obj.lineWidth;
+        this.ctx.lineCap = 'round';
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(obj.x1, obj.y1);
+        this.ctx.lineTo(obj.x2, obj.y2);
+        this.ctx.stroke();
+        
+        // 矢印の頭を描画
+        this.ctx.fillStyle = obj.strokeStyle;
+        this.ctx.beginPath();
+        this.ctx.moveTo(obj.x2, obj.y2);
+        this.ctx.lineTo(
+            obj.x2 - headLength * Math.cos(angle - Math.PI / 6),
+            obj.y2 - headLength * Math.sin(angle - Math.PI / 6)
+        );
+        this.ctx.lineTo(
+            obj.x2 - headLength * Math.cos(angle + Math.PI / 6),
+            obj.y2 - headLength * Math.sin(angle + Math.PI / 6)
+        );
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
+    
+    drawNumber(obj) {
+        // 円を描画
+        this.ctx.fillStyle = obj.fillStyle;
+        this.ctx.beginPath();
+        this.ctx.arc(obj.x + obj.radius, obj.y + obj.radius, obj.radius, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // 白い縁取り
+        this.ctx.strokeStyle = '#fff';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+        
+        // 番号テキスト
+        this.ctx.fillStyle = obj.textColor;
+        this.ctx.font = `${obj.fontWeight} ${obj.fontSize}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(obj.number.toString(), obj.x + obj.radius, obj.y + obj.radius);
+    }
+    
     drawSelectionHandles(obj) {
+        if (obj.type === 'arrow' || obj.type === 'number') {
+            // 矢印と番号には選択枠のみ
+            this.ctx.strokeStyle = '#3498db';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+            
+            if (obj.type === 'arrow') {
+                this.ctx.beginPath();
+                this.ctx.arc(obj.x1, obj.y1, 5, 0, Math.PI * 2);
+                this.ctx.stroke();
+                this.ctx.beginPath();
+                this.ctx.arc(obj.x2, obj.y2, 5, 0, Math.PI * 2);
+                this.ctx.stroke();
+            } else if (obj.type === 'number') {
+                this.ctx.beginPath();
+                this.ctx.arc(obj.x + obj.radius, obj.y + obj.radius, obj.radius + 5, 0, Math.PI * 2);
+                this.ctx.stroke();
+            }
+            
+            this.ctx.setLineDash([]);
+            return;
+        }
+        
         const handleSize = 8;
         this.ctx.fillStyle = '#3498db';
         this.ctx.strokeStyle = '#fff';
@@ -730,9 +990,17 @@ class AnnotationApp {
             if (!isMod) {
                 this.setTool('rect');
             }
+        } else if (e.key === 'a' || e.key === 'A') {
+            if (!isMod) {
+                this.setTool('arrow');
+            }
         } else if (e.key === 't' || e.key === 'T') {
             if (!isMod) {
                 this.setTool('text');
+            }
+        } else if (e.key === 'n' || e.key === 'N') {
+            if (!isMod) {
+                this.setTool('number');
             }
         }
     }
@@ -754,7 +1022,7 @@ class AnnotationApp {
         
         // 情報テキスト
         if (this.image) {
-            this.infoText.textContent = `オブジェクト: ${this.objects.length}個 | 履歴: ${this.historyIndex + 1}/${this.history.length}`;
+            this.infoText.textContent = `オブジェクト: ${this.objects.length}個 | 次の番号: ${this.numberCounter}`;
         } else {
             this.infoText.textContent = 'Ctrl/⌘+V で画像を貼り付け、または画像をドロップ';
         }
