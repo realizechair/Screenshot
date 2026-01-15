@@ -89,8 +89,45 @@
     <div id="canvas-container">
         <canvas id="canvas"></canvas>
         
+        <!-- モード選択画面 -->
+        <div id="mode-selector" class="mode-selector">
+            <div class="mode-selector-content">
+                <div class="mode-icon">📸</div>
+                <h2>スクリーンショット注釈ツール</h2>
+                <p class="mode-description">編集モードを選択してください</p>
+                
+                <div class="mode-options">
+                    <div class="mode-option" id="mode-single">
+                        <div class="mode-option-icon">🖼️</div>
+                        <h3>シングルモード</h3>
+                        <p>1枚の画像を編集</p>
+                        <ul class="mode-features">
+                            <li>最初の画像でキャンバス固定</li>
+                            <li>画像の移動・リサイズ不可</li>
+                            <li>シンプルで高速</li>
+                            <li>従来の使い方</li>
+                        </ul>
+                        <button class="mode-button">シングルモードで開始</button>
+                    </div>
+                    
+                    <div class="mode-option" id="mode-multi">
+                        <div class="mode-option-icon">🖼️🖼️</div>
+                        <h3>マルチモード</h3>
+                        <p>複数の画像を編集</p>
+                        <ul class="mode-features">
+                            <li>複数画像を自由に配置</li>
+                            <li>画像の移動・リサイズ可能</li>
+                            <li>柔軟なレイアウト</li>
+                            <li>大きなキャンバス</li>
+                        </ul>
+                        <button class="mode-button">マルチモードで開始</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- 初期ガイド表示 -->
-        <div id="guide" class="guide">
+        <div id="guide" class="guide" style="display: none;">
             <div class="guide-content">
                 <div class="guide-icon">📋</div>
                 <h2>スクリーンショット注釈ツール v3</h2>

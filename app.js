@@ -9,6 +9,9 @@ class AnnotationApp {
         this.canvas = document.getElementById('canvas');
         this.ctx = this.canvas.getContext('2d');
         
+        // モード設定（初期値はnull、選択後に設定）
+        this.mode = null; // 'single' or 'multi'
+        
         // アプリケーション状態
         this.objects = []; // すべてのオブジェクト（画像含む）
         this.selectedObject = null;
@@ -42,13 +45,46 @@ class AnnotationApp {
         // UI要素
         this.guide = document.getElementById('guide');
         this.infoText = document.getElementById('info-text');
+        this.modeSelector = document.getElementById('mode-selector');
         
-        // 初期化
+        // モード選択イベント
+        this.bindModeSelection();
+        
+        console.log('📸 スクリーンショット注釈ツール v3 起動');
+    }
+    
+    // ========================================
+    // モード選択
+    // ========================================
+    
+    bindModeSelection() {
+        document.getElementById('mode-single').querySelector('.mode-button').addEventListener('click', () => {
+            this.startSingleMode();
+        });
+        
+        document.getElementById('mode-multi').querySelector('.mode-button').addEventListener('click', () => {
+            this.startMultiMode();
+        });
+    }
+    
+    startSingleMode() {
+        this.mode = 'single';
+        console.log('🖼️ シングルモードで開始');
+        this.modeSelector.classList.add('hidden');
+        this.guide.style.display = 'flex';
         this.initCanvas();
         this.bindEvents();
         this.updateUI();
-        
-        console.log('📸 スクリーンショット注釈ツール v3 起動 - 複数画像対応');
+    }
+    
+    startMultiMode() {
+        this.mode = 'multi';
+        console.log('🖼️🖼️ マルチモードで開始');
+        this.modeSelector.classList.add('hidden');
+        this.guide.style.display = 'flex';
+        this.initCanvas();
+        this.bindEvents();
+        this.updateUI();
     }
     
     // ========================================
@@ -281,35 +317,76 @@ class AnnotationApp {
     }
     
     addImageObject(img) {
-        // 画像を中央に配置（少しずつずらす）
-        const offsetX = (this.objects.filter(o => o.type === 'image').length * 20) % 200;
-        const offsetY = (this.objects.filter(o => o.type === 'image').length * 20) % 200;
-        
-        // 画像サイズは原寸大（元のサイズそのまま）
-        const width = img.width;
-        const height = img.height;
-        
-        const newImage = {
-            id: this.nextId++,
-            type: 'image',
-            x: 100 + offsetX,
-            y: 100 + offsetY,
-            width: width,
-            height: height,
-            image: img,
-            originalWidth: img.width,
-            originalHeight: img.height
-        };
-        
-        // 画像は最背面に配置（配列の先頭に追加）
-        this.objects.unshift(newImage);
-        this.selectedObject = newImage;
+        if (this.mode === 'single') {
+            // シングルモード: 最初の画像のみ受け付ける
+            if (this.objects.filter(o => o.type === 'image').length > 0) {
+                console.log('⚠️ シングルモードでは1枚のみ配置可能');
+                return;
+            }
+            
+            // 画像サイズでキャンバスを固定
+            const width = img.width;
+            const height = img.height;
+            
+            // キャンバスサイズを画像に合わせる
+            this.logicalWidth = width;
+            this.logicalHeight = height;
+            this.canvas.width = width * this.dpr;
+            this.canvas.height = height * this.dpr;
+            this.canvas.style.width = width + 'px';
+            this.canvas.style.height = height + 'px';
+            this.ctx.scale(this.dpr, this.dpr);
+            this.ctx.imageSmoothingEnabled = true;
+            this.ctx.imageSmoothingQuality = 'high';
+            
+            const newImage = {
+                id: this.nextId++,
+                type: 'image',
+                x: 0,
+                y: 0,
+                width: width,
+                height: height,
+                image: img,
+                originalWidth: img.width,
+                originalHeight: img.height,
+                locked: true  // シングルモードでは移動・リサイズ不可
+            };
+            
+            this.objects.unshift(newImage);
+            console.log(`✅ シングルモード: 画像固定 ${img.width}x${img.height}`);
+            
+        } else {
+            // マルチモード: 複数画像を自由に配置
+            const offsetX = (this.objects.filter(o => o.type === 'image').length * 20) % 200;
+            const offsetY = (this.objects.filter(o => o.type === 'image').length * 20) % 200;
+            
+            // 画像サイズは原寸大（元のサイズそのまま）
+            const width = img.width;
+            const height = img.height;
+            
+            const newImage = {
+                id: this.nextId++,
+                type: 'image',
+                x: 100 + offsetX,
+                y: 100 + offsetY,
+                width: width,
+                height: height,
+                image: img,
+                originalWidth: img.width,
+                originalHeight: img.height
+            };
+            
+            this.objects.unshift(newImage);
+            this.selectedObject = newImage;
+            
+            // キャンバスサイズを拡張（必要に応じて）
+            this.expandCanvasIfNeeded(newImage.x + newImage.width, newImage.y + newImage.height);
+            
+            console.log(`✅ マルチモード: 画像追加 ${img.width}x${img.height} → ${width}x${height}`);
+        }
         
         // ガイドを非表示
         this.guide.classList.add('hidden');
-        
-        // キャンバスサイズを拡張（必要に応じて）
-        this.expandCanvasIfNeeded(newImage.x + newImage.width, newImage.y + newImage.height);
         
         this.render();
         this.saveHistory();
@@ -811,6 +888,8 @@ class AnnotationApp {
         // 後ろから（上のレイヤーから）チェック
         for (let i = this.objects.length - 1; i >= 0; i--) {
             const obj = this.objects[i];
+            // シングルモードでロックされた画像はスキップ
+            if (obj.locked) continue;
             if (this.isPointInObject(obj, x, y)) {
                 return obj;
             }
