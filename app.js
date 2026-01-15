@@ -839,26 +839,6 @@ class AnnotationApp {
         this.ctx.fillStyle = '#ffffff';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // グリッド線を描画（薄いグレー）
-        this.ctx.strokeStyle = '#f0f0f0';
-        this.ctx.lineWidth = 1;
-        
-        // 縦線
-        for (let x = 0; x < this.canvas.width; x += 50) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, this.canvas.height);
-            this.ctx.stroke();
-        }
-        
-        // 横線
-        for (let y = 0; y < this.canvas.height; y += 50) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, y);
-            this.ctx.lineTo(this.canvas.width, y);
-            this.ctx.stroke();
-        }
-        
         // オブジェクトを描画（画像は最初に描画される）
         for (let obj of this.objects) {
             this.drawObject(obj);
