@@ -17,7 +17,7 @@ class AnnotationApp {
         // 現在のスタイル設定
         this.currentColor = '#ff3b30';
         this.currentLineWidth = 3;
-        this.currentMosaicSize = 15; // モザイクの粗さ
+        this.currentMosaicSize = 150; // モザイクの粗さ（デフォルト150px）
         this.numberCounter = 1; // 番号スタンプのカウンター
         
         // 操作履歴（Undo/Redo用）
