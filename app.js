@@ -106,6 +106,7 @@ class AnnotationApp {
         document.getElementById('btn-arrow').addEventListener('click', () => this.setTool('arrow'));
         document.getElementById('btn-text').addEventListener('click', () => this.setTool('text'));
         document.getElementById('btn-number').addEventListener('click', () => this.setTool('number'));
+        document.getElementById('btn-reset-number').addEventListener('click', () => this.resetNumberCounter());
         document.getElementById('btn-mosaic').addEventListener('click', () => this.setTool('mosaic'));
         document.getElementById('btn-undo').addEventListener('click', () => this.undo());
         document.getElementById('btn-redo').addEventListener('click', () => this.redo());
@@ -451,7 +452,7 @@ class AnnotationApp {
                 y: y,
                 width: 0,
                 height: 0,
-                pixelSize: 10,  // モザイクの粗さ
+                pixelSize: 5,  // モザイクの粗さ（細かいモザイク）
                 imageData: null // 後で描画時にキャプチャ
             };
             this.objects.push(newMosaic);
@@ -704,6 +705,12 @@ class AnnotationApp {
         this.selectedObject = newNumber;
         this.render();
         this.saveHistory();
+    }
+    
+    resetNumberCounter() {
+        this.numberCounter = 1;
+        console.log('🔄 番号カウンターをリセット: 1');
+        this.updateUI();
     }
     
     // ========================================
