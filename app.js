@@ -195,6 +195,7 @@ class AnnotationApp {
     // ========================================
     
     setTool(tool) {
+        console.log('🔧 ツール切り替え:', tool);
         this.currentTool = tool;
         
         // ボタンのactive状態を更新
@@ -370,6 +371,8 @@ class AnnotationApp {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         
+        console.log(`🖱️ マウスダウン: (${Math.floor(x)}, ${Math.floor(y)}), ツール: ${this.currentTool}`);
+        
         this.dragStartX = x;
         this.dragStartY = y;
         this.isDragging = true;
@@ -397,6 +400,7 @@ class AnnotationApp {
             
         } else if (this.currentTool === 'rect') {
             // 新しい矩形を作成開始
+            console.log('🔲 矩形作成開始');
             const newRect = {
                 id: this.nextId++,
                 type: 'rect',
@@ -413,6 +417,7 @@ class AnnotationApp {
             
         } else if (this.currentTool === 'arrow') {
             // 新しい矢印を作成開始
+            console.log('➡️ 矢印作成開始');
             const newArrow = {
                 id: this.nextId++,
                 type: 'arrow',
@@ -433,10 +438,12 @@ class AnnotationApp {
             
         } else if (this.currentTool === 'number') {
             // 番号スタンプ配置
+            console.log('🔢 番号スタンプ配置');
             this.placeNumber(x, y);
             
         } else if (this.currentTool === 'mosaic') {
             // モザイク領域を作成開始
+            console.log('🔳 モザイク作成開始');
             const newMosaic = {
                 id: this.nextId++,
                 type: 'mosaic',
@@ -1032,8 +1039,8 @@ class AnnotationApp {
     // ========================================
     
     render() {
-        // キャンバスをクリア（白背景）
-        this.ctx.fillStyle = '#ffffff';
+        // キャンバスをクリア（薄いグレー背景で描画を見やすく）
+        this.ctx.fillStyle = '#f5f5f5';
         this.ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
         
         // オブジェクトを描画（画像は最初に描画される）
