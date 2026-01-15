@@ -12,7 +12,7 @@ class AnnotationApp {
         // アプリケーション状態
         this.objects = []; // すべてのオブジェクト（画像含む）
         this.selectedObject = null;
-        this.currentTool = 'select'; // 'select', 'rect', 'arrow', 'text', 'number'
+        this.currentTool = 'select'; // 'select', 'rect', 'arrow', 'text', 'number', 'mosaic'
         
         // 現在のスタイル設定
         this.currentColor = '#ff3b30';
@@ -106,6 +106,7 @@ class AnnotationApp {
         document.getElementById('btn-arrow').addEventListener('click', () => this.setTool('arrow'));
         document.getElementById('btn-text').addEventListener('click', () => this.setTool('text'));
         document.getElementById('btn-number').addEventListener('click', () => this.setTool('number'));
+        document.getElementById('btn-mosaic').addEventListener('click', () => this.setTool('mosaic'));
         document.getElementById('btn-undo').addEventListener('click', () => this.undo());
         document.getElementById('btn-redo').addEventListener('click', () => this.redo());
         document.getElementById('btn-delete').addEventListener('click', () => this.deleteSelected());
@@ -215,6 +216,9 @@ class AnnotationApp {
             this.canvas.style.cursor = 'text';
         } else if (tool === 'number') {
             document.getElementById('btn-number').classList.add('active');
+            this.canvas.style.cursor = 'crosshair';
+        } else if (tool === 'mosaic') {
+            document.getElementById('btn-mosaic').classList.add('active');
             this.canvas.style.cursor = 'crosshair';
         }
         
@@ -430,6 +434,22 @@ class AnnotationApp {
         } else if (this.currentTool === 'number') {
             // 番号スタンプ配置
             this.placeNumber(x, y);
+            
+        } else if (this.currentTool === 'mosaic') {
+            // モザイク領域を作成開始
+            const newMosaic = {
+                id: this.nextId++,
+                type: 'mosaic',
+                x: x,
+                y: y,
+                width: 0,
+                height: 0,
+                pixelSize: 10,  // モザイクの粗さ
+                imageData: null // 後で描画時にキャプチャ
+            };
+            this.objects.push(newMosaic);
+            this.dragObject = newMosaic;
+            this.selectedObject = newMosaic;
         }
     }
     
@@ -479,6 +499,13 @@ class AnnotationApp {
             obj.x2 = x;
             obj.y2 = y;
             this.render();
+            
+        } else if (this.currentTool === 'mosaic' && this.dragObject) {
+            // モザイク領域のサイズ変更
+            const obj = this.dragObject;
+            obj.width = x - obj.x;
+            obj.height = y - obj.y;
+            this.render();
         }
     }
     
@@ -511,6 +538,26 @@ class AnnotationApp {
                     this.objects = this.objects.filter(o => o.id !== obj.id);
                     this.selectedObject = null;
                 } else {
+                    this.saveHistory();
+                }
+            } else if (this.currentTool === 'mosaic') {
+                const obj = this.dragObject;
+                // サイズが小さすぎる場合は削除
+                if (Math.abs(obj.width) < 10 && Math.abs(obj.height) < 10) {
+                    this.objects = this.objects.filter(o => o.id !== obj.id);
+                    this.selectedObject = null;
+                } else {
+                    // 負のサイズを正規化
+                    if (obj.width < 0) {
+                        obj.x += obj.width;
+                        obj.width = -obj.width;
+                    }
+                    if (obj.height < 0) {
+                        obj.y += obj.height;
+                        obj.height = -obj.height;
+                    }
+                    // モザイク処理を実行してキャプチャ
+                    this.captureMosaicArea(obj);
                     this.saveHistory();
                 }
             } else if (this.currentTool === 'select') {
@@ -653,6 +700,91 @@ class AnnotationApp {
     }
     
     // ========================================
+    // モザイク処理
+    // ========================================
+    
+    captureMosaicArea(mosaicObj) {
+        // 一時的に選択を解除
+        const prevSelected = this.selectedObject;
+        this.selectedObject = null;
+        
+        // モザイクオブジェクトを除外して描画
+        const prevObjects = this.objects;
+        this.objects = this.objects.filter(o => o.id !== mosaicObj.id);
+        this.render();
+        
+        // 領域の画像データを取得
+        const imageData = this.ctx.getImageData(
+            mosaicObj.x * this.dpr,
+            mosaicObj.y * this.dpr,
+            mosaicObj.width * this.dpr,
+            mosaicObj.height * this.dpr
+        );
+        
+        // モザイク処理を適用
+        const mosaicImageData = this.applyMosaic(imageData, mosaicObj.pixelSize * this.dpr);
+        
+        // 処理済み画像をCanvasに変換
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = mosaicObj.width * this.dpr;
+        tempCanvas.height = mosaicObj.height * this.dpr;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.putImageData(mosaicImageData, 0, 0);
+        
+        // Data URLとして保存
+        mosaicObj.imageDataURL = tempCanvas.toDataURL();
+        
+        // オブジェクトを復元
+        this.objects = prevObjects;
+        this.selectedObject = prevSelected;
+        this.render();
+    }
+    
+    applyMosaic(imageData, pixelSize) {
+        const data = imageData.data;
+        const width = imageData.width;
+        const height = imageData.height;
+        
+        // ピクセルサイズに基づいてモザイク処理
+        for (let y = 0; y < height; y += pixelSize) {
+            for (let x = 0; x < width; x += pixelSize) {
+                // ブロック内の平均色を計算
+                let r = 0, g = 0, b = 0, a = 0, count = 0;
+                
+                for (let py = y; py < Math.min(y + pixelSize, height); py++) {
+                    for (let px = x; px < Math.min(x + pixelSize, width); px++) {
+                        const idx = (py * width + px) * 4;
+                        r += data[idx];
+                        g += data[idx + 1];
+                        b += data[idx + 2];
+                        a += data[idx + 3];
+                        count++;
+                    }
+                }
+                
+                // 平均値
+                r = Math.floor(r / count);
+                g = Math.floor(g / count);
+                b = Math.floor(b / count);
+                a = Math.floor(a / count);
+                
+                // ブロック全体に平均色を適用
+                for (let py = y; py < Math.min(y + pixelSize, height); py++) {
+                    for (let px = x; px < Math.min(x + pixelSize, width); px++) {
+                        const idx = (py * width + px) * 4;
+                        data[idx] = r;
+                        data[idx + 1] = g;
+                        data[idx + 2] = b;
+                        data[idx + 3] = a;
+                    }
+                }
+            }
+        }
+        
+        return imageData;
+    }
+    
+    // ========================================
     // オブジェクト操作
     // ========================================
     
@@ -668,7 +800,7 @@ class AnnotationApp {
     }
     
     isPointInObject(obj, x, y) {
-        if (obj.type === 'image' || obj.type === 'rect' || obj.type === 'text') {
+        if (obj.type === 'image' || obj.type === 'rect' || obj.type === 'text' || obj.type === 'mosaic') {
             return x >= obj.x && x <= obj.x + obj.width &&
                    y >= obj.y && y <= obj.y + obj.height;
         } else if (obj.type === 'number') {
@@ -848,7 +980,7 @@ class AnnotationApp {
     restoreFromHistory() {
         const state = JSON.parse(this.history[this.historyIndex]);
         
-        // 画像オブジェクトを復元
+        // 画像とモザイクオブジェクトを復元
         this.objects = state.objects.map(obj => {
             if (obj.type === 'image') {
                 const img = new Image();
@@ -856,6 +988,14 @@ class AnnotationApp {
                 return {
                     ...obj,
                     image: img
+                };
+            } else if (obj.type === 'mosaic' && obj.imageDataURL) {
+                // モザイク画像をキャッシュ
+                const img = new Image();
+                img.src = obj.imageDataURL;
+                return {
+                    ...obj,
+                    cachedImage: img
                 };
             }
             return obj;
@@ -932,6 +1072,23 @@ class AnnotationApp {
             
         } else if (obj.type === 'number') {
             this.drawNumber(obj);
+            
+        } else if (obj.type === 'mosaic') {
+            // モザイク画像を描画
+            if (obj.imageDataURL) {
+                // 画像をキャッシュしない場合は毎回新規作成
+                if (!obj.cachedImage) {
+                    obj.cachedImage = new Image();
+                    obj.cachedImage.src = obj.imageDataURL;
+                }
+                if (obj.cachedImage.complete) {
+                    this.ctx.drawImage(obj.cachedImage, obj.x, obj.y, obj.width, obj.height);
+                }
+            } else {
+                // モザイク未生成の場合、一時的に半透明の矩形を表示
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+            }
         }
     }
     
@@ -1099,6 +1256,10 @@ class AnnotationApp {
         } else if (e.key === 'n' || e.key === 'N') {
             if (!isMod) {
                 this.setTool('number');
+            }
+        } else if (e.key === 'm' || e.key === 'M') {
+            if (!isMod) {
+                this.setTool('mosaic');
             }
         }
     }
