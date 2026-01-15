@@ -61,6 +61,8 @@ class AnnotationApp {
         const singleBtn = document.getElementById('mode-single').querySelector('.mode-button');
         const multiBtn = document.getElementById('mode-multi').querySelector('.mode-button');
         const closeBtn = document.getElementById('mode-close-btn');
+        const modeSelector = document.getElementById('mode-selector');
+        const modeSelectorContent = modeSelector.querySelector('.mode-selector-content');
         
         console.log('🔧 モード選択ボタンをバインド:', singleBtn, multiBtn, closeBtn);
         
@@ -78,6 +80,23 @@ class AnnotationApp {
         closeBtn.addEventListener('click', () => {
             console.log('❌ モード選択を閉じました（デフォルト: マルチモード）');
             this.startMultiMode();
+        });
+        
+        // 背景クリックでも閉じる（デフォルトはマルチモード）
+        modeSelector.addEventListener('click', (e) => {
+            // コンテンツ部分がクリックされた場合は無視
+            if (e.target === modeSelector) {
+                console.log('🖱️ 背景クリックでモード選択を閉じました（デフォルト: マルチモード）');
+                this.startMultiMode();
+            }
+        });
+        
+        // Escキーでもモード選択画面を閉じる
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.mode === null && this.modeSelector && !this.modeSelector.classList.contains('hidden')) {
+                console.log('⌨️ Escキーでモード選択を閉じました（デフォルト: マルチモード）');
+                this.startMultiMode();
+            }
         });
     }
     
