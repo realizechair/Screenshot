@@ -17,6 +17,7 @@ class AnnotationApp {
         // 現在のスタイル設定
         this.currentColor = '#ff3b30';
         this.currentLineWidth = 3;
+        this.currentMosaicSize = 15; // モザイクの粗さ
         this.numberCounter = 1; // 番号スタンプのカウンター
         
         // 操作履歴（Undo/Redo用）
@@ -130,6 +131,16 @@ class AnnotationApp {
         lineWidth.addEventListener('input', (e) => {
             this.currentLineWidth = parseInt(e.target.value);
             lineWidthValue.textContent = this.currentLineWidth + 'px';
+        });
+        
+        // モザイクサイズスライダー
+        const mosaicSize = document.getElementById('mosaic-size');
+        const mosaicSizeValue = document.getElementById('mosaic-size-value');
+        
+        mosaicSize.addEventListener('input', (e) => {
+            this.currentMosaicSize = parseInt(e.target.value);
+            mosaicSizeValue.textContent = this.currentMosaicSize + 'px';
+            console.log('モザイクサイズ変更:', this.currentMosaicSize);
         });
         
         // ファイル入力
@@ -444,7 +455,7 @@ class AnnotationApp {
             
         } else if (this.currentTool === 'mosaic') {
             // モザイク領域を作成開始
-            console.log('🔳 モザイク作成開始');
+            console.log('🔳 モザイク作成開始 - サイズ:', this.currentMosaicSize);
             const newMosaic = {
                 id: this.nextId++,
                 type: 'mosaic',
@@ -452,7 +463,7 @@ class AnnotationApp {
                 y: y,
                 width: 0,
                 height: 0,
-                pixelSize: 15,  // モザイクの粗さ（粗いモザイク）
+                pixelSize: this.currentMosaicSize,  // スライダーで設定した粗さ
                 imageData: null // 後で描画時にキャプチャ
             };
             this.objects.push(newMosaic);
@@ -718,6 +729,14 @@ class AnnotationApp {
     // ========================================
     
     captureMosaicArea(mosaicObj) {
+        console.log('🎨 モザイク処理開始:', {
+            x: mosaicObj.x,
+            y: mosaicObj.y,
+            width: mosaicObj.width,
+            height: mosaicObj.height,
+            pixelSize: mosaicObj.pixelSize
+        });
+        
         // 一時的に選択を解除
         const prevSelected = this.selectedObject;
         this.selectedObject = null;
@@ -735,6 +754,12 @@ class AnnotationApp {
             mosaicObj.height * this.dpr
         );
         
+        console.log('📊 画像データ取得:', {
+            width: imageData.width,
+            height: imageData.height,
+            dataLength: imageData.data.length
+        });
+        
         // モザイク処理を適用
         const mosaicImageData = this.applyMosaic(imageData, mosaicObj.pixelSize * this.dpr);
         
@@ -747,6 +772,8 @@ class AnnotationApp {
         
         // Data URLとして保存
         mosaicObj.imageDataURL = tempCanvas.toDataURL();
+        
+        console.log('✅ モザイク処理完了 - Data URL長:', mosaicObj.imageDataURL.length);
         
         // オブジェクトを復元
         this.objects = prevObjects;
