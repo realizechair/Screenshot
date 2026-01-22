@@ -287,11 +287,15 @@ class AnnotationApp {
         
         // ガイド閉じるボタン
         const guideCloseBtn = document.getElementById('guide-close-btn');
+        console.log('🔧 ガイド閉じるボタンをバインド:', guideCloseBtn);
         if (guideCloseBtn) {
-            guideCloseBtn.addEventListener('click', () => {
-                console.log('✅ ガイドを閉じました');
+            guideCloseBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // イベント伝播を停止
+                console.log('✅ ガイド閉じるボタンがクリックされました');
                 this.guide.classList.add('hidden');
             });
+        } else {
+            console.warn('⚠️ ガイド閉じるボタンが見つかりません');
         }
         
         // ガイドの背景クリックでも閉じる
