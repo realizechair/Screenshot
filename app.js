@@ -284,6 +284,26 @@ class AnnotationApp {
             }
             e.stopPropagation();
         });
+        
+        // ガイド閉じるボタン
+        const guideCloseBtn = document.getElementById('guide-close-btn');
+        if (guideCloseBtn) {
+            guideCloseBtn.addEventListener('click', () => {
+                console.log('✅ ガイドを閉じました');
+                this.guide.classList.add('hidden');
+            });
+        }
+        
+        // ガイドの背景クリックでも閉じる
+        if (this.guide) {
+            this.guide.addEventListener('click', (e) => {
+                // ガイドコンテンツ以外をクリックした場合
+                if (e.target === this.guide) {
+                    console.log('🖱️ 背景クリックでガイドを閉じました');
+                    this.guide.classList.add('hidden');
+                }
+            });
+        }
     }
     
     // ========================================
